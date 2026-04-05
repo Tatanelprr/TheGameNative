@@ -7,15 +7,15 @@ import {
   StyleSheet,
   ScrollView,
   Animated,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import socket from '../utils/socket';
 
 export default function GameScreen({ navigation, route }) {
   const { game: initialGame, playerId, playerName } = route.params;
   const [game, setGame] = useState(initialGame);
   const [selectedCard, setSelectedCard] = useState(null);
-  const [pendingPlay, setPendingPlay] = useState(null); // { card, pileKey }
+  const [pendingPlay, setPendingPlay] = useState(null);
   const [message, setMessage] = useState('');
   const messageAnim = useRef(new Animated.Value(0)).current;
 
@@ -64,18 +64,13 @@ export default function GameScreen({ navigation, route }) {
     }).start();
   };
 
-  // Étape 1 : sélectionner une pile → aperçu local uniquement
   const handleSelectPile = (pileKey) => {
     if (!isMyTurn) return showMessage('❌ Ce n\'est pas ton tour');
     if (selectedCard === null) return showMessage('👆 Sélectionne une carte d\'abord');
-    if (!canPlayOnPile(pileKey, selectedCard)) {
-      return showMessage('❌ Cette carte ne peut pas aller ici');
-    }
-    // Aperçu local, rien n'est envoyé au serveur
+    if (!canPlayOnPile(pileKey, selectedCard)) return showMessage('❌ Cette carte ne peut pas aller ici');
     setPendingPlay({ card: selectedCard, pileKey });
   };
 
-  // Étape 2 : confirmer → envoi au serveur
   const handleConfirm = () => {
     if (!pendingPlay) return;
     socket.emit(
@@ -90,7 +85,6 @@ export default function GameScreen({ navigation, route }) {
     );
   };
 
-  // Annuler l'aperçu
   const handleCancel = () => {
     setPendingPlay(null);
     setSelectedCard(null);
@@ -100,9 +94,7 @@ export default function GameScreen({ navigation, route }) {
     if (!isMyTurn) return;
     if (pendingPlay) return showMessage('⚠️ Confirme ou annule d\'abord');
     socket.emit('endTurn', { code: game.code }, (response) => {
-      if (!response.success) {
-        showMessage(`❌ ${response.error}`);
-      }
+      if (!response.success) showMessage(`❌ ${response.error}`);
     });
   };
 
@@ -138,22 +130,15 @@ export default function GameScreen({ navigation, route }) {
         disabled={!isMyTurn || (selectedCard === null && !pendingPlay)}
       >
         <Text style={styles.pileIcon}>{icon}</Text>
-
-        {/* Valeur actuelle */}
         <Text style={[styles.pileValue, isPending && styles.pileValueFaded]}>
           {top}
         </Text>
-
-        {/* Aperçu de la carte en attente */}
         {isPending && (
           <View style={styles.pendingBadge}>
             <Text style={styles.pendingBadgeText}>{pendingPlay.card}</Text>
           </View>
         )}
-
-        <Text style={styles.pileLabel}>
-          {isAsc ? 'MONTE' : 'DESCEND'}
-        </Text>
+        <Text style={styles.pileLabel}>{isAsc ? 'MONTE' : 'DESCEND'}</Text>
       </TouchableOpacity>
     );
   };
@@ -258,7 +243,7 @@ export default function GameScreen({ navigation, route }) {
         </View>
       </View>
 
-      {/* BOUTONS CONFIRMER / ANNULER */}
+      {/* CONFIRMER / ANNULER */}
       {pendingPlay && (
         <View style={styles.confirmRow}>
           <TouchableOpacity style={styles.btnCancel} onPress={handleCancel}>
@@ -270,7 +255,7 @@ export default function GameScreen({ navigation, route }) {
         </View>
       )}
 
-      {/* MAIN DU JOUEUR */}
+      {/* MAIN */}
       <View style={styles.handSection}>
         <Text style={styles.handLabel}>
           TA MAIN — {myPlayer?.hand?.length ?? 0} cartes
@@ -285,7 +270,7 @@ export default function GameScreen({ navigation, route }) {
         </ScrollView>
       </View>
 
-      {/* BOUTON FIN DE TOUR */}
+      {/* FIN DE TOUR */}
       {isMyTurn && (
         <TouchableOpacity
           style={[
@@ -294,9 +279,7 @@ export default function GameScreen({ navigation, route }) {
           ]}
           onPress={handleEndTurn}
         >
-          <Text style={styles.btnEndTurnText}>
-            Fin du tour →
-          </Text>
+          <Text style={styles.btnEndTurnText}>Fin du tour →</Text>
         </TouchableOpacity>
       )}
 
@@ -381,14 +364,15 @@ const styles = StyleSheet.create({
   },
   pilesRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 8,
     justifyContent: 'center',
   },
   pile: {
     flex: 1,
     backgroundColor: '#16161f',
     borderRadius: 14,
-    padding: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 4,
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#2a2a3a',
@@ -406,33 +390,33 @@ const styles = StyleSheet.create({
   pileDisabled: {
     opacity: 0.35,
   },
-  pileIcon: { fontSize: 18, marginBottom: 4 },
+  pileIcon: { fontSize: 16, marginBottom: 4 },
   pileValue: {
-    color: '#fff',
-    fontSize: 28,
-    fontWeight: '900',
-  },
-  pileValueFaded: {
-    color: '#444',
-    fontSize: 18,
-  },
-  pendingBadge: {
-    backgroundColor: '#4CAF50',
-    borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    marginTop: 4,
-  },
-  pendingBadgeText: {
     color: '#fff',
     fontSize: 22,
     fontWeight: '900',
   },
+  pileValueFaded: {
+    color: '#444',
+    fontSize: 14,
+  },
+  pendingBadge: {
+    backgroundColor: '#4CAF50',
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    marginTop: 4,
+  },
+  pendingBadgeText: {
+    color: '#fff',
+    fontSize: 18,
+    fontWeight: '900',
+  },
   pileLabel: {
     color: '#555',
-    fontSize: 9,
-    letterSpacing: 2,
-    marginTop: 6,
+    fontSize: 8,
+    letterSpacing: 1,
+    marginTop: 4,
   },
   confirmRow: {
     flexDirection: 'row',

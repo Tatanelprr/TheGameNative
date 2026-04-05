@@ -16,50 +16,76 @@ import socket from '../utils/socket';
 export default function HomeScreen({ navigation }) {
   const [playerName, setPlayerName] = useState('');
   const [joinCode, setJoinCode] = useState('');
-  const [mode, setMode] = useState(null); // 'create' | 'join'
+  const [mode, setMode] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const connectAndEmit = (event, payload, onSuccess) => {
+    setLoading(true);
+
+    // Si déjà connecté, on émet directement
+    if (socket.connected) {
+      socket.emit(event, payload, (response) => {
+        setLoading(false);
+        if (response.success) {
+          onSuccess(response);
+        } else {
+          Alert.alert('Erreur', response.error);
+        }
+      });
+      return;
+    }
+
+    // Sinon on attend la connexion
+    socket.connect();
+
+    socket.once('connect', () => {
+      console.log('✅ Connecté ! ID:', socket.id);
+      socket.emit(event, payload, (response) => {
+        setLoading(false);
+        if (response.success) {
+          onSuccess(response);
+        } else {
+          Alert.alert('Erreur', response.error);
+          socket.disconnect();
+        }
+      });
+    });
+
+    socket.once('connect_error', (err) => {
+      setLoading(false);
+      console.log('❌ Erreur connexion:', err.message);
+      Alert.alert('Erreur de connexion', 'Impossible de joindre le serveur. Vérifie que le serveur est lancé.');
+      socket.disconnect();
+    });
+  };
 
   const handleCreateGame = () => {
     if (!playerName.trim()) return Alert.alert('Erreur', 'Entre ton prénom');
-    setLoading(true);
-
-    socket.connect();
-    socket.emit('createGame', { playerName: playerName.trim() }, (response) => {
-      setLoading(false);
-      if (response.success) {
+    connectAndEmit(
+      'createGame',
+      { playerName: playerName.trim() },
+      (response) => {
         navigation.navigate('Lobby', {
           game: response.game,
           playerId: socket.id,
           playerName: playerName.trim(),
         });
-      } else {
-        Alert.alert('Erreur', response.error);
-        socket.disconnect();
       }
-    });
+    );
   };
 
   const handleJoinGame = () => {
     if (!playerName.trim()) return Alert.alert('Erreur', 'Entre ton prénom');
     if (!joinCode.trim()) return Alert.alert('Erreur', 'Entre le code de la partie');
-    setLoading(true);
-
-    socket.connect();
-    socket.emit(
+    connectAndEmit(
       'joinGame',
       { code: joinCode.trim().toUpperCase(), playerName: playerName.trim() },
       (response) => {
-        setLoading(false);
-        if (response.success) {
-          navigation.navigate('Lobby', {
-            game: response.game,
-            playerId: socket.id,
-            playerName: playerName.trim(),
-          });
-        } else {
-          Alert.alert('Erreur', response.error);
-          socket.disconnect();
-        }
+        navigation.navigate('Lobby', {
+          game: response.game,
+          playerId: socket.id,
+          playerName: playerName.trim(),
+        });
       }
     );
   };
@@ -69,14 +95,12 @@ export default function HomeScreen({ navigation }) {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      {/* TITRE */}
       <View style={styles.header}>
         <Text style={styles.title}>THE</Text>
         <Text style={styles.titleBig}>GAME</Text>
         <Text style={styles.subtitle}>Jouez ensemble contre le jeu</Text>
       </View>
 
-      {/* CHAMP NOM */}
       <View style={styles.inputGroup}>
         <Text style={styles.label}>TON PRÉNOM</Text>
         <TextInput
@@ -90,7 +114,6 @@ export default function HomeScreen({ navigation }) {
         />
       </View>
 
-      {/* BOUTONS MODE */}
       {!mode && (
         <View style={styles.modeButtons}>
           <TouchableOpacity
@@ -108,7 +131,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       )}
 
-      {/* CRÉER */}
       {mode === 'create' && (
         <View style={styles.section}>
           <Text style={styles.sectionInfo}>
@@ -129,7 +151,6 @@ export default function HomeScreen({ navigation }) {
         </View>
       )}
 
-      {/* REJOINDRE */}
       {mode === 'join' && (
         <View style={styles.section}>
           <Text style={styles.label}>CODE DE LA PARTIE</Text>
