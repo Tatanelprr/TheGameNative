@@ -11,7 +11,7 @@ Développé avec **React Native / Expo** (client) et **Node.js / Socket.io** (se
 |------|-------------|
 | Client | React Native, Expo SDK 54, Socket.io-client |
 | Serveur | Node.js, Express, Socket.io |
-| Navigation | React Navigation v6 |
+| Navigation | React Navigation v7 |
 
 ---
 
